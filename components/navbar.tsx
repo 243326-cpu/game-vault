@@ -25,28 +25,16 @@ export function Navbar() {
   useEffect(() => {
     async function loadSession() {
       try {
-        const token = localStorage.getItem("gamevault_token")
-        const stored = localStorage.getItem("gamevault_user")
-        if (stored) setUser(JSON.parse(stored))
-        if (!token) return
-
-        const response = await fetch("/api/auth/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        })
+        const response = await fetch("/api/auth/me")
         const data = await response.json()
 
-        if (!response.ok) {
-          localStorage.removeItem("gamevault_token")
-          localStorage.removeItem("gamevault_user")
+        if (!response.ok || !data.user) {
           setUser(null)
           return
         }
 
         setUser(data.user)
-        localStorage.setItem("gamevault_user", JSON.stringify(data.user))
       } catch {
-        localStorage.removeItem("gamevault_token")
-        localStorage.removeItem("gamevault_user")
         setUser(null)
       }
     }
@@ -70,6 +58,17 @@ export function Navbar() {
   const handleAuth = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setAuthError("")
+
+    if (authMode === "signup" && !authForm.name.trim()) {
+      setAuthError("Player name is required.")
+      return
+    }
+
+    if (authForm.password.length < 6) {
+      setAuthError("Password must be at least 6 characters.")
+      return
+    }
+
     setAuthLoading(true)
 
     try {
@@ -82,15 +81,13 @@ export function Navbar() {
           password: authForm.password,
         }),
       })
-      const data = await response.json()
+      const data = await response.json().catch(() => ({}))
 
       if (!response.ok) {
         throw new Error(data.error || "Unable to authenticate.")
       }
 
       setUser(data.user)
-      localStorage.setItem("gamevault_user", JSON.stringify(data.user))
-      localStorage.setItem("gamevault_token", data.token)
       setAuthOpen(false)
       setAuthForm({ name: "", email: "", password: "" })
     } catch (error) {
@@ -100,10 +97,9 @@ export function Navbar() {
     }
   }
 
-  const logout = () => {
+  const logout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => null)
     setUser(null)
-    localStorage.removeItem("gamevault_user")
-    localStorage.removeItem("gamevault_token")
     setAuthOpen(false)
   }
 
@@ -259,10 +255,12 @@ export function Navbar() {
                       <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
                         <UserCircle className="h-4 w-4 text-primary" />
                         <input
+                          required
                           value={authForm.name}
                           onChange={(event) => setAuthForm({ ...authForm, name: event.target.value })}
                           className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/35"
                           placeholder="ShadowPro"
+                          autoComplete="name"
                         />
                       </div>
                     </label>
@@ -279,6 +277,7 @@ export function Navbar() {
                         onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })}
                         className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/35"
                         placeholder="player@gamevault.com"
+                        autoComplete="email"
                       />
                     </div>
                   </label>
@@ -290,10 +289,12 @@ export function Navbar() {
                       <input
                         type="password"
                         required
+                        minLength={6}
                         value={authForm.password}
                         onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })}
                         className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/35"
                         placeholder="Enter password"
+                        autoComplete={authMode === "signup" ? "new-password" : "current-password"}
                       />
                     </div>
                   </label>

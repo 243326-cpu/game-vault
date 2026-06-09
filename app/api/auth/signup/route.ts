@@ -1,11 +1,34 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { connectMongo } from "@/lib/mongodb"
-import { createSessionToken, hashPassword, normalizeEmail, toPublicUser, User } from "@/lib/auth"
+import { createUserAccount, normalizeEmail, setAuthCookie, toPublicUser } from "@/lib/auth"
+import { hasSupabaseConfig, SupabaseApiError } from "@/lib/supabase"
+
+function authErrorStatus(error: unknown) {
+  if (!(error instanceof SupabaseApiError)) return 500
+  if (error.status === 422 || error.status === 400) return 400
+  if (error.status === 409) return 409
+  return error.status >= 500 ? 503 : error.status
+}
+
+function authErrorMessage(error: unknown) {
+  if (!(error instanceof Error)) return "Unable to create account."
+
+  if (error.message.toLowerCase().includes("invalid")) {
+    return `${error.message}. Check your Supabase Auth email settings if this address should be allowed.`
+  }
+
+  return error.message
+}
 
 export async function POST(request: NextRequest) {
   try {
-    await connectMongo()
+    if (!hasSupabaseConfig()) {
+      return NextResponse.json(
+        { error: "Supabase is not configured. Add Supabase environment variables before creating accounts." },
+        { status: 503 }
+      )
+    }
+
     const body = await request.json()
     const name = String(body.name || "").trim()
     const email = normalizeEmail(body.email)
@@ -19,22 +42,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Password must be at least 6 characters." }, { status: 400 })
     }
 
-    const existing = await User.findOne({ email }).lean()
-    if (existing) {
-      return NextResponse.json({ error: "An account with this email already exists." }, { status: 409 })
-    }
-
-    const { salt, hash } = await hashPassword(password)
-    const created = await User.create({
+    const created = await createUserAccount({
       name,
       email,
-      passwordSalt: salt,
-      passwordHash: hash,
+      password,
     })
-    const user = toPublicUser(created)
+    const user = toPublicUser(created.user, name)
+    const response = NextResponse.json({ user }, { status: 201 })
 
-    return NextResponse.json({ user, token: createSessionToken(user) }, { status: 201 })
-  } catch {
-    return NextResponse.json({ error: "Unable to create account." }, { status: 500 })
+    if (created.session) {
+      setAuthCookie(response, {
+        access_token: created.session.access_token,
+        refresh_token: created.session.refresh_token,
+        expires_at: created.session.expires_at,
+      })
+    }
+
+    return response
+  } catch (error) {
+    return NextResponse.json(
+      { error: authErrorMessage(error) },
+      { status: authErrorStatus(error) }
+    )
   }
 }

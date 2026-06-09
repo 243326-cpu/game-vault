@@ -1,6 +1,6 @@
 # GameVault
 
-GameVault is now a single-stack Next.js application. The frontend and backend API run from the same Next.js project, so deployment only needs one app service plus a MongoDB connection string.
+GameVault is a single-stack Next.js application backed by Supabase. The frontend and API routes run from this project, and all GameVault data is stored in Supabase tables or Supabase Auth.
 
 ## Local Development
 
@@ -10,22 +10,23 @@ GameVault is now a single-stack Next.js application. The frontend and backend AP
 npm install
 ```
 
-2. Configure a live MongoDB database in `.env.local`:
+2. Create a Supabase project and run the SQL in `supabase/schema.sql` from the Supabase SQL editor.
+
+3. Configure `.env.local`:
 
 ```bash
-MONGODB_URI=mongodb+srv://USERNAME:URL_ENCODED_PASSWORD@CLUSTER.mongodb.net/gamevault
-SESSION_SECRET=replace-with-a-long-random-secret
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
-Use MongoDB Atlas or another hosted MongoDB provider. Replace `USERNAME`, `URL_ENCODED_PASSWORD`, and `CLUSTER` with your real database credentials. The database name at the end can stay `gamevault`. If your password contains symbols like `@`, encode them first. Set `SESSION_SECRET` to a long random value; it signs login sessions.
-
-3. Start Next.js:
+4. Start Next.js:
 
 ```bash
 npm run dev
 ```
 
-4. Open the app:
+5. Open the app:
 
 ```bash
 http://localhost:3000
@@ -38,6 +39,10 @@ These routes are served by Next.js route handlers under `app/api`:
 - `GET /api`
 - `GET /api/players`
 - `GET /api/players?game=PUBG&rank=Diamond&name=shadow&limit=10`
+- `GET /api/leaderboard`
+- `POST /api/leaderboard`
+- `DELETE /api/leaderboard`
+- `DELETE /api/leaderboard/:id`
 - `GET /api/tournaments`
 - `GET /api/teams`
 - `GET /api/registrations`
@@ -45,6 +50,10 @@ These routes are served by Next.js route handlers under `app/api`:
 - `POST /api/registrations`
 - `PUT /api/registrations/:id`
 - `DELETE /api/registrations/:id`
+- `POST /api/auth/signup`
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
 
 Compatibility aliases are also available:
 
@@ -53,36 +62,25 @@ Compatibility aliases are also available:
 - `PUT /api/tournaments/players/:id`
 - `DELETE /api/tournaments/players/:id`
 
-## Migration Plan
+## Supabase Data
 
-1. Keep the existing Next.js app as the only runtime.
-2. Move Express route behavior into `app/api` route handlers.
-3. Move shared backend data and helpers into `lib`.
-4. Keep MongoDB persistence through a cached server-side Mongoose connection.
-5. Change client fetches to same-origin `/api/...` URLs.
-6. Remove the standalone backend folder and backend deployment instructions.
-7. Deploy the project as one Next.js service with `MONGODB_URI` and `SESSION_SECRET` configured.
+Run `supabase/schema.sql` once before using the app. It creates and seeds:
+
+- Supabase Auth-linked `profiles`
+- `registrations`
+- `leaderboard_scores`
+- `players`
+- `tournaments`
+- `teams`
+
+The app does not write GameVault data to local JSON files, MongoDB, or browser `localStorage`.
 
 ## Deployment
 
-Deploy the root folder only. On Vercel or another Next.js host, set this environment variable:
+Deploy the root folder as one Next.js service. Set these environment variables in the hosting provider:
 
 ```bash
-MONGODB_URI=mongodb+srv://USERNAME:URL_ENCODED_PASSWORD@CLUSTER.mongodb.net/gamevault
-SESSION_SECRET=replace-with-a-long-random-secret
-```
-
-No separate Express server, backend port, CORS config, or `NEXT_PUBLIC_API_BASE_URL` is required.
-
-## MongoDB Atlas Setup
-
-1. Create a MongoDB Atlas cluster.
-2. Create a database user with read/write access.
-3. Add your deployment IP to Network Access. For Vercel or changing IP hosts, use `0.0.0.0/0` only if you understand the security tradeoff.
-4. Copy the driver connection string.
-5. Put it in `.env.local` for local development and in your hosting provider's environment variables for production:
-
-```bash
-MONGODB_URI=mongodb+srv://USERNAME:URL_ENCODED_PASSWORD@CLUSTER.mongodb.net/gamevault
-SESSION_SECRET=replace-with-a-long-random-secret
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```

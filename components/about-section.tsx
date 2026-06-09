@@ -13,8 +13,8 @@ const features = [
   },
   {
     icon: Shield,
-    title: "Persistent Storage",
-    description: "All player data is stored locally using JSON in localStorage, so your data survives page reloads.",
+    title: "Supabase Storage",
+    description: "Player data, scores, tournament records, and accounts are stored in Supabase as the app source of truth.",
   },
   {
     icon: Users,
@@ -33,7 +33,7 @@ export function AboutSection() {
             How GameVault Works
           </h2>
           <p className="mx-auto mt-3 max-w-lg text-pretty text-muted-foreground">
-            A dynamic leaderboard system built with modern web technologies, demonstrating DOM manipulation, arrays, JSON storage, and real-time ranking.
+            A dynamic leaderboard system built with modern web technologies, Supabase persistence, and real-time ranking.
           </p>
         </div>
 

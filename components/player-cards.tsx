@@ -10,8 +10,6 @@ interface PlayerCard {
   score: number
 }
 
-const STORAGE_KEY = "gamevault_playercards"
-
 function normalizePlayers(data: any[]): PlayerCard[] {
   return data.map((player, index) => ({
     id:
@@ -25,24 +23,6 @@ function normalizePlayers(data: any[]): PlayerCard[] {
   }))
 }
 
-function loadStoredPlayers(): PlayerCard[] {
-  if (typeof window === "undefined") return []
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (!stored) return []
-    const parsed = JSON.parse(stored)
-    if (!Array.isArray(parsed)) return []
-    return normalizePlayers(parsed)
-  } catch {
-    return []
-  }
-}
-
-function savePlayers(players: PlayerCard[]) {
-  if (typeof window === "undefined") return
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(players))
-}
-
 export function PlayerCards() {
   const [allPlayers, setAllPlayers] = useState<PlayerCard[]>([])
   const [loading, setLoading] = useState(true)
@@ -53,13 +33,6 @@ export function PlayerCards() {
   const [animationKey, setAnimationKey] = useState(0)
 
   useEffect(() => {
-    const stored = loadStoredPlayers()
-    if (stored.length > 0) {
-      setAllPlayers(stored)
-      setLoading(false)
-      return
-    }
-
     async function fetchPlayers() {
       try {
         const response = await fetch("/api/players")
@@ -67,11 +40,9 @@ export function PlayerCards() {
           throw new Error(`Failed to fetch players: ${response.status}`)
         }
         const data = await response.json()
-        // data may be an array (server) or object; normalize both
         const arr = Array.isArray(data) ? data : data.players || []
         const normalized = normalizePlayers(arr)
         setAllPlayers(normalized)
-        savePlayers(normalized)
       } catch (err) {
         setError("Unable to load player cards. Please try again later.")
       } finally {

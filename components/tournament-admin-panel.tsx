@@ -292,7 +292,7 @@ export function TournamentAdminPanel() {
           <div className="rounded-lg border border-border bg-card p-5">
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-foreground">Database Schema</h3>
             <p className="text-sm leading-6 text-muted-foreground">
-              MongoDB collection: registrations. Fields: id, name, gamertag, game, tournamentId, paymentMethod,
+              Supabase table: registrations. Fields: id, name, gamertag, game, tournamentId, paymentMethod,
               paymentStatus, registrationFee, registeredAt, updatedAt.
             </p>
           </div>

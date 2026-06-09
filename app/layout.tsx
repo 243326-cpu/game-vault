@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -45,25 +44,19 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: `
           (function(){
             try{
-              var t = localStorage.getItem('gamevault_theme');
-              if(t) document.documentElement.setAttribute('data-theme', t);
-              else {
-                var prefers = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-                document.documentElement.setAttribute('data-theme', prefers);
-              }
+              var prefers = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+              document.documentElement.setAttribute('data-theme', prefers);
               window.toggleTheme = function(){
                 try{
                   var current = document.documentElement.getAttribute('data-theme');
                   var next = current === 'light' ? 'dark' : 'light';
                   document.documentElement.setAttribute('data-theme', next);
-                  localStorage.setItem('gamevault_theme', next);
                 }catch(e){}
               }
             }catch(e){}
           })();
         `}} />
         {children}
-        <Analytics />
       </body>
     </html>
   )

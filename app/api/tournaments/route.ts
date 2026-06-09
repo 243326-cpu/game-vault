@@ -1,27 +1,40 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { escapeRegExp, tournaments } from "@/lib/gamevault-data"
-import { Registration, seedRegistrations } from "@/lib/registration"
+import { countRegistrations } from "@/lib/registration"
+import { hasSupabaseConfig, supabaseRest } from "@/lib/supabase"
 
 export async function GET(request: NextRequest) {
   try {
-    await seedRegistrations()
+    if (!hasSupabaseConfig()) {
+      return NextResponse.json([])
+    }
+
     const game = request.nextUrl.searchParams.get("game")
+    const query = new URLSearchParams({ select: "*", order: "name.asc" })
+
+    if (game) {
+      query.set("game", `ilike.${game}`)
+    }
+
+    const data = await supabaseRest<Array<{ id: string; name: string; game: string; spots: number; status: string }>>(
+      "tournaments",
+      { query }
+    )
+
     const result = await Promise.all(
-      tournaments.map(async (tournament) => ({
+      (data || []).map(async (tournament) => ({
         ...tournament,
-        registered: await Registration.countDocuments({
-          game: new RegExp(`^${escapeRegExp(tournament.game)}$`, "i"),
+        registered: await countRegistrations({
+          game: tournament.game,
         }),
       }))
     )
 
-    const filtered = game
-      ? result.filter((tournament) => tournament.game.toLowerCase() === game.toLowerCase())
-      : result
-
-    return NextResponse.json(filtered)
-  } catch {
-    return NextResponse.json({ error: "Unable to load tournaments" }, { status: 500 })
+    return NextResponse.json(result)
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Unable to load tournaments" },
+      { status: 500 }
+    )
   }
 }

@@ -103,9 +103,13 @@ export function TournamentRegistration() {
     setRemoving(id)
     setTimeout(async () => {
       try {
-        await fetch(`${API_BASE}/registrations/${id}`, { method: "DELETE" })
-      } catch {}
-      persist(players.filter((p) => p.id !== id))
+        const response = await fetch(`${API_BASE}/registrations/${id}`, { method: "DELETE" })
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(data.error || "Unable to remove player.")
+        persist(players.filter((p) => p.id !== id))
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to remove player.")
+      }
       setRemoving(null)
     }, 300)
   }

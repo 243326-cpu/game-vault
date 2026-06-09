@@ -11,72 +11,73 @@ interface Player {
   date: string
 }
 
-// Load players from localStorage using JSON
-function loadPlayers(): Player[] {
-  if (typeof window === "undefined") return []
-  try {
-    const stored = localStorage.getItem("gamevault_players")
-    if (stored) {
-      const parsed: Player[] = JSON.parse(stored)
-      return parsed
-    }
-  } catch {
-    // If JSON parsing fails, return empty array
-  }
-  return []
-}
-
-// Save players to localStorage using JSON
-function savePlayers(players: Player[]): void {
-  if (typeof window === "undefined") return
-  localStorage.setItem("gamevault_players", JSON.stringify(players))
-}
-
 export function Leaderboard() {
   const [players, setPlayers] = useState<Player[]>([])
+  const [error, setError] = useState("")
   const [mounted, setMounted] = useState(false)
 
-  // Load from localStorage on mount
   useEffect(() => {
-    const loaded = loadPlayers()
-    // Sort in descending order by score
-    const sorted = [...loaded].sort((a, b) => b.score - a.score)
-    setPlayers(sorted)
-    setMounted(true)
+    async function loadPlayers() {
+      try {
+        const response = await fetch("/api/leaderboard")
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || "Unable to load leaderboard.")
+        setPlayers(Array.isArray(data) ? data : [])
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to load leaderboard.")
+      } finally {
+        setMounted(true)
+      }
+    }
+
+    loadPlayers()
   }, [])
 
-  // Add a player and update DOM dynamically
-  const addPlayer = useCallback((name: string, score: number) => {
-    const newPlayer: Player = {
-      id: crypto.randomUUID(),
-      name,
-      score,
-      date: new Date().toLocaleDateString(),
+  const addPlayer = useCallback(async (name: string, score: number) => {
+    setError("")
+    const response = await fetch("/api/leaderboard", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, score }),
+    })
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || "Unable to add player.")
     }
 
     setPlayers((prev) => {
-      // Use arrays - push new player, then sort descending
-      const updated = [...prev, newPlayer]
+      const updated = [...prev, data as Player]
       updated.sort((a, b) => b.score - a.score)
-      // Persist to localStorage as JSON
-      savePlayers(updated)
       return updated
     })
   }, [])
 
-  // Remove a player
-  const removePlayer = useCallback((id: string) => {
+  const removePlayer = useCallback(async (id: string) => {
+    setError("")
+    const response = await fetch(`/api/leaderboard/${id}`, { method: "DELETE" })
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}))
+      setError(data.error || "Unable to remove player.")
+      return
+    }
+
     setPlayers((prev) => {
       const updated = prev.filter((p) => p.id !== id)
-      savePlayers(updated)
       return updated
     })
   }, [])
 
-  // Clear all players
-  const clearAll = useCallback(() => {
+  const clearAll = useCallback(async () => {
+    setError("")
+    const response = await fetch("/api/leaderboard", { method: "DELETE" })
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}))
+      setError(data.error || "Unable to clear leaderboard.")
+      return
+    }
+
     setPlayers([])
-    localStorage.removeItem("gamevault_players")
   }, [])
 
   if (!mounted) {
@@ -100,8 +101,8 @@ export function Leaderboard() {
           <h2 className="text-balance text-3xl font-bold text-foreground md:text-4xl">
             Global Leaderboard
           </h2>
-          <p className="mx-auto mt-3 max-w-lg text-pretty text-muted-foreground">
-            Players are ranked in descending order by score. The top player is highlighted as the champion.
+              <p className="mx-auto mt-3 max-w-lg text-pretty text-muted-foreground">
+            Scores are stored in Supabase and ranked in descending order. The top player is highlighted as the champion.
           </p>
         </div>
 
@@ -129,7 +130,12 @@ export function Leaderboard() {
               </div>
 
               {/* Dynamic Table */}
-              {players.length === 0 ? (
+              {error ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <Trophy className="mb-4 h-12 w-12 text-muted-foreground/30" />
+                  <p className="text-sm text-destructive">{error}</p>
+                </div>
+              ) : players.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16">
                   <Trophy className="mb-4 h-12 w-12 text-muted-foreground/30" />
                   <p className="text-sm text-muted-foreground">No players yet. Add a player to get started!</p>
@@ -246,7 +252,7 @@ export function Leaderboard() {
               {players.length > 0 && (
                 <div className="border-t border-border bg-secondary/50 px-6 py-3">
                   <p className="text-xs text-muted-foreground">
-                    Showing {players.length} player{players.length !== 1 ? "s" : ""} | Data stored locally using JSON in localStorage
+                    Showing {players.length} player{players.length !== 1 ? "s" : ""} | Data stored in Supabase
                   </p>
                 </div>
               )}
@@ -264,7 +270,7 @@ export function Leaderboard() {
 }
 
 // Separate Add Player form component
-function AddPlayerForm({ onAddPlayer }: { onAddPlayer: (name: string, score: number) => void }) {
+function AddPlayerForm({ onAddPlayer }: { onAddPlayer: (name: string, score: number) => Promise<void> }) {
   const [name, setName] = useState("")
   const [score, setScore] = useState("")
   const [error, setError] = useState("")
@@ -286,12 +292,15 @@ function AddPlayerForm({ onAddPlayer }: { onAddPlayer: (name: string, score: num
     }
 
     onAddPlayer(name.trim(), Number(score))
-    setName("")
-    setScore("")
-    setSuccess(true)
-
-    // Clear success message after 3s
-    setTimeout(() => setSuccess(false), 3000)
+      .then(() => {
+        setName("")
+        setScore("")
+        setSuccess(true)
+        setTimeout(() => setSuccess(false), 3000)
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Unable to add player.")
+      })
   }
 
   return (
@@ -353,7 +362,7 @@ function AddPlayerForm({ onAddPlayer }: { onAddPlayer: (name: string, score: num
       {/* Info box */}
       <div className="border-t border-border px-6 py-4">
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Scores are stored locally in your browser using JSON and localStorage. Players are automatically ranked in descending order. The top player is highlighted as the champion.
+          Scores are stored in Supabase. Players are automatically ranked in descending order, and the top player is highlighted as the champion.
         </p>
       </div>
     </div>

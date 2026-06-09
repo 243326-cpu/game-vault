@@ -50,6 +50,7 @@ Desktop.ini
 .idea/
 
 # Generated archives and local database files
+data/
 *.zip
 *.db
 *.sqlite

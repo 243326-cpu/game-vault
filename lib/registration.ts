@@ -1,7 +1,4 @@
-import mongoose, { Schema } from "mongoose"
-
-import { connectMongo } from "@/lib/mongodb"
-import { escapeRegExp } from "@/lib/gamevault-data"
+import { hasSupabaseConfig, supabaseRest } from "@/lib/supabase"
 
 export type RegistrationPayload = {
   name: string
@@ -13,37 +10,37 @@ export type RegistrationPayload = {
   registrationFee: number
 }
 
-const registrationSchema = new Schema(
-  {
-    id: { type: String, required: true, unique: true, index: true },
-    name: { type: String, required: true, trim: true },
-    gamertag: { type: String, required: true, unique: true, trim: true },
-    game: { type: String, required: true, trim: true },
-    tournamentId: { type: String, default: "t1" },
-    paymentMethod: { type: String, default: "USDT" },
-    paymentStatus: { type: String, default: "Paid" },
-    registrationFee: { type: Number, default: 500 },
-    registeredAt: { type: String, required: true },
-    updatedAt: { type: String, required: true },
-  },
-  { collection: "registrations" }
-)
+type RegistrationFilter = {
+  game?: string
+  paymentStatus?: string
+  name?: string
+}
 
-export const Registration =
-  mongoose.models.Registration || mongoose.model("Registration", registrationSchema)
+type RegistrationRow = {
+  id: string
+  name: string
+  gamertag: string
+  game: string
+  tournament_id: string | null
+  payment_method: string
+  payment_status: string
+  registration_fee: number
+  registered_at: string
+  updated_at: string
+}
 
-export function toRegistration(doc: any) {
+export function toRegistration(row: RegistrationRow) {
   return {
-    id: doc.id,
-    name: doc.name,
-    gamertag: doc.gamertag,
-    game: doc.game,
-    tournamentId: doc.tournamentId,
-    paymentMethod: doc.paymentMethod,
-    paymentStatus: doc.paymentStatus,
-    registrationFee: doc.registrationFee,
-    registeredAt: doc.registeredAt,
-    updatedAt: doc.updatedAt,
+    id: row.id,
+    name: row.name,
+    gamertag: row.gamertag,
+    game: row.game,
+    tournamentId: row.tournament_id || "t1",
+    paymentMethod: row.payment_method,
+    paymentStatus: row.payment_status,
+    registrationFee: Number(row.registration_fee),
+    registeredAt: row.registered_at,
+    updatedAt: row.updated_at,
   }
 }
 
@@ -59,70 +56,123 @@ export function registrationPayload(body: any): RegistrationPayload {
   }
 }
 
-export function registrationFilter(query: URLSearchParams) {
-  const filter: Record<string, any> = {}
-  const game = query.get("game")
-  const paymentStatus = query.get("paymentStatus")
-  const name = query.get("name")
-
-  if (game) {
-    filter.game = new RegExp(`^${escapeRegExp(game)}$`, "i")
+export function registrationFilter(query: URLSearchParams): RegistrationFilter {
+  return {
+    game: query.get("game") || undefined,
+    paymentStatus: query.get("paymentStatus") || undefined,
+    name: query.get("name") || undefined,
   }
-
-  if (paymentStatus) {
-    filter.paymentStatus = new RegExp(`^${escapeRegExp(paymentStatus)}$`, "i")
-  }
-
-  if (name) {
-    const search = new RegExp(escapeRegExp(name), "i")
-    filter.$or = [{ name: search }, { gamertag: search }]
-  }
-
-  return filter
 }
 
-export async function seedRegistrations() {
-  await connectMongo()
-  const count = await Registration.countDocuments()
-  if (count > 0) return
+function registrationQuery(filter: RegistrationFilter = {}, select = "*") {
+  const query = new URLSearchParams({ select })
+  if (filter.game) {
+    query.set("game", `ilike.${filter.game}`)
+  }
 
-  const now = new Date().toLocaleString()
-  await Registration.insertMany([
-    {
-      id: "tp1",
-      name: "Ayaan Malik",
-      gamertag: "ShadowPro",
-      game: "Valorant",
-      tournamentId: "t1",
-      paymentMethod: "USDT",
-      paymentStatus: "Paid",
-      registrationFee: 500,
-      registeredAt: "2026-06-08 10:20 PM",
-      updatedAt: now,
+  if (filter.paymentStatus) {
+    query.set("payment_status", `ilike.${filter.paymentStatus}`)
+  }
+
+  if (filter.name) {
+    const search = filter.name.replaceAll("*", "")
+    query.set("or", `(name.ilike.*${search}*,gamertag.ilike.*${search}*)`)
+  }
+
+  return query
+}
+
+export async function listRegistrations(filter: RegistrationFilter = {}) {
+  if (!hasSupabaseConfig()) return []
+
+  const query = registrationQuery(filter)
+  query.set("order", "registered_at.desc,gamertag.asc")
+  const data = await supabaseRest<RegistrationRow[]>("registrations", { query })
+  return data.map(toRegistration)
+}
+
+export async function countRegistrations(filter: RegistrationFilter = {}) {
+  return (await listRegistrations(filter)).length
+}
+
+export async function findRegistrationById(id: string) {
+  if (!hasSupabaseConfig()) return null
+
+  const query = new URLSearchParams({ select: "*", id: `eq.${id}`, limit: "1" })
+  const data = await supabaseRest<RegistrationRow[]>("registrations", { query })
+  return data[0] ? toRegistration(data[0]) : null
+}
+
+export async function findRegistrationByGamertag(gamertag: string, exceptId?: string) {
+  if (!hasSupabaseConfig()) return null
+
+  const query = new URLSearchParams({ select: "*", gamertag: `ilike.${gamertag}` })
+  const data = await supabaseRest<RegistrationRow[]>("registrations", { query })
+  const match = data.find((registration) => registration.id !== exceptId)
+  return match ? toRegistration(match) : null
+}
+
+export async function createRegistration(data: RegistrationPayload) {
+  if (!hasSupabaseConfig()) {
+    throw new Error("Supabase is not configured. Add Supabase environment variables before creating registrations.")
+  }
+
+  const now = new Date().toISOString()
+  const created = await supabaseRest<RegistrationRow[]>("registrations", {
+    method: "POST",
+    headers: { Prefer: "return=representation" },
+    body: {
+      name: data.name,
+      gamertag: data.gamertag,
+      game: data.game,
+      tournament_id: data.tournamentId,
+      payment_method: data.paymentMethod,
+      payment_status: data.paymentStatus,
+      registration_fee: data.registrationFee,
+      registered_at: now,
+      updated_at: now,
     },
-    {
-      id: "tp2",
-      name: "Sara Khan",
-      gamertag: "DiamondQueen",
-      game: "Valorant",
-      tournamentId: "t1",
-      paymentMethod: "JazzCash",
-      paymentStatus: "Paid",
-      registrationFee: 500,
-      registeredAt: "2026-06-08 10:24 PM",
-      updatedAt: now,
+  })
+
+  return toRegistration(created[0])
+}
+
+export async function updateRegistration(id: string, data: RegistrationPayload) {
+  if (!hasSupabaseConfig()) {
+    throw new Error("Supabase is not configured. Add Supabase environment variables before updating registrations.")
+  }
+
+  const now = new Date().toISOString()
+  const query = new URLSearchParams({ id: `eq.${id}` })
+  const updated = await supabaseRest<RegistrationRow[]>("registrations", {
+    method: "PATCH",
+    query,
+    headers: { Prefer: "return=representation" },
+    body: {
+      name: data.name,
+      gamertag: data.gamertag,
+      game: data.game,
+      tournament_id: data.tournamentId,
+      payment_method: data.paymentMethod,
+      payment_status: data.paymentStatus,
+      registration_fee: data.registrationFee,
+      updated_at: now,
     },
-    {
-      id: "tp3",
-      name: "Hamza Ali",
-      gamertag: "NinjaX",
-      game: "PUBG",
-      tournamentId: "t2",
-      paymentMethod: "EasyPaisa",
-      paymentStatus: "Pending",
-      registrationFee: 500,
-      registeredAt: "2026-06-08 10:30 PM",
-      updatedAt: now,
-    },
-  ])
+  })
+
+  return updated[0] ? toRegistration(updated[0]) : null
+}
+
+export async function deleteRegistration(id: string) {
+  if (!hasSupabaseConfig()) {
+    throw new Error("Supabase is not configured. Add Supabase environment variables before deleting registrations.")
+  }
+
+  const query = new URLSearchParams({ id: `eq.${id}` })
+  const data = await supabaseRest<RegistrationRow[]>("registrations", {
+    method: "DELETE",
+    query,
+    headers: { Prefer: "return=representation" },
+  })
+  return data[0] ? toRegistration(data[0]) : null
 }

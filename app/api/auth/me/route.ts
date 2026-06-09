@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { bearerToken, userFromToken } from "@/lib/auth"
+import { AUTH_COOKIE, clearAuthCookie, sessionFromCookie, userFromSession } from "@/lib/auth"
 
 export async function GET(request: NextRequest) {
-  const user = await userFromToken(bearerToken(request.headers.get("authorization")))
+  const user = await userFromSession(sessionFromCookie(request.cookies.get(AUTH_COOKIE)?.value))
 
   if (!user) {
-    return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+    const response = NextResponse.json({ user: null })
+    clearAuthCookie(response)
+    return response
   }
 
   return NextResponse.json({ user })

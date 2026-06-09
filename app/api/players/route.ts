@@ -1,40 +1,41 @@
-import { readFile } from "fs/promises"
-import path from "path"
-
 import { NextRequest, NextResponse } from "next/server"
+
+import { hasSupabaseConfig, supabaseRest } from "@/lib/supabase"
 
 export async function GET(request: NextRequest) {
   try {
-    const file = path.join(process.cwd(), "public", "players.json")
-    const raw = await readFile(file, "utf8")
-    let players = JSON.parse(raw)
+    if (!hasSupabaseConfig()) {
+      return NextResponse.json([])
+    }
+
     const { searchParams } = request.nextUrl
     const game = searchParams.get("game")
     const rank = searchParams.get("rank")
     const name = searchParams.get("name")
     const limit = searchParams.get("limit")
+    const query = new URLSearchParams({ select: "*", order: "score.desc" })
 
     if (name) {
-      const q = name.toLowerCase()
-      players = players.filter((player: any) => String(player.name).toLowerCase().includes(q))
+      query.set("name", `ilike.*${name.replaceAll("*", "")}*`)
     }
 
     if (game) {
-      players = players.filter((player: any) => String(player.game).toLowerCase() === game.toLowerCase())
+      query.set("game", `ilike.${game}`)
     }
 
     if (rank) {
-      players = players.filter((player: any) => String(player.rank).toLowerCase() === rank.toLowerCase())
+      query.set("rank", `ilike.${rank}`)
     }
-
-    players.sort((a: any, b: any) => (b.score || 0) - (a.score || 0))
 
     if (limit) {
-      players = players.slice(0, Number(limit))
+      query.set("limit", String(Number(limit)))
     }
 
-    return NextResponse.json(players)
-  } catch {
-    return NextResponse.json({ error: "Server error" }, { status: 500 })
+    return NextResponse.json(await supabaseRest("players", { query }))
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Unable to load players" },
+      { status: 500 }
+    )
   }
 }
