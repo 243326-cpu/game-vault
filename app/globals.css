@@ -1,0 +1,318 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: #0a0a0f;
+  --foreground: #e8e8ed;
+  --card: #12121a;
+  --card-foreground: #e8e8ed;
+  --popover: #12121a;
+  --popover-foreground: #e8e8ed;
+  --primary: #00e5ff;
+  --primary-foreground: #0a0a0f;
+  --secondary: #1a1a2e;
+  --secondary-foreground: #e8e8ed;
+  --muted: #1a1a2e;
+  --muted-foreground: #7a7a8e;
+  --accent: #ff3d5a;
+  --accent-foreground: #ffffff;
+  --destructive: #ff3d5a;
+  --destructive-foreground: #ffffff;
+  --border: #2a2a3e;
+  --input: #1a1a2e;
+  --ring: #00e5ff;
+  --chart-1: #00e5ff;
+  --chart-2: #ff3d5a;
+  --chart-3: #ffd700;
+  --chart-4: #00ff88;
+  --chart-5: #ff6b35;
+  --radius: 0.625rem;
+  --gold: #ffd700;
+  --sidebar: #12121a;
+  --sidebar-foreground: #e8e8ed;
+  --sidebar-primary: #00e5ff;
+  --sidebar-primary-foreground: #0a0a0f;
+  --sidebar-accent: #1a1a2e;
+  --sidebar-accent-foreground: #e8e8ed;
+  --sidebar-border: #2a2a3e;
+  --sidebar-ring: #00e5ff;
+}
+
+/* Light theme overrides when data-theme="light" is set on <html> */
+[data-theme="light"] {
+  --background: #ffffff;
+  --foreground: #0a0a0f;
+  --card: #ffffff;
+  --card-foreground: #0a0a0f;
+  --popover: #ffffff;
+  --popover-foreground: #0a0a0f;
+  --primary: #0b76ff;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f4f6;
+  --secondary-foreground: #0a0a0f;
+  --muted: #6b7280;
+  --muted-foreground: #6b7280;
+  --accent: #e11d48;
+  --accent-foreground: #ffffff;
+  --border: #e6e9ee;
+  --input: #ffffff;
+  --ring: #0b76ff;
+}
+
+@theme inline {
+  --font-sans: 'Geist', 'Geist Fallback';
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-gold: var(--gold);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+}
+
+@layer utilities {
+  .liquid-glass {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.045)),
+      rgba(5, 8, 18, 0.38);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      0 24px 60px rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(24px) saturate(140%);
+  }
+
+  .liquid-glass::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(110deg, transparent 0%, rgba(255, 255, 255, 0.18) 18%, transparent 34%),
+      radial-gradient(circle at top left, rgba(0, 229, 255, 0.22), transparent 35%);
+    opacity: 0.5;
+    transform: translateX(-38%);
+    transition: transform 700ms ease, opacity 700ms ease;
+  }
+
+  .liquid-glass:hover::before {
+    opacity: 0.85;
+    transform: translateX(24%);
+  }
+
+  .liquid-glass-strong {
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.055)),
+      rgba(5, 8, 18, 0.52);
+  }
+
+  .glass-icon-button {
+    display: inline-flex;
+    height: 2.5rem;
+    width: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.75);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(18px);
+    transition: transform 220ms ease, border-color 220ms ease, background 220ms ease, color 220ms ease, box-shadow 220ms ease;
+  }
+
+  .glass-icon-button:hover {
+    transform: translateY(-2px);
+    border-color: rgba(0, 229, 255, 0.45);
+    background: rgba(0, 229, 255, 0.12);
+    color: #ffffff;
+    box-shadow: 0 14px 35px rgba(0, 229, 255, 0.18);
+  }
+
+  .button-glow {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .button-glow::after {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    z-index: -1;
+    border-radius: inherit;
+    background: linear-gradient(90deg, rgba(0, 229, 255, 0.75), rgba(255, 61, 90, 0.55), rgba(0, 229, 255, 0.75));
+    filter: blur(18px);
+    opacity: 0;
+    transition: opacity 250ms ease;
+  }
+
+  .button-glow:hover::after {
+    opacity: 0.85;
+  }
+
+  .smooth-hover-lift {
+    transition: transform 260ms ease, border-color 260ms ease, box-shadow 260ms ease, background 260ms ease;
+  }
+
+  .smooth-hover-lift:hover {
+    transform: translateY(-4px);
+  }
+
+  .blur-fade-up {
+    animation: blur-fade-up 800ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .fade-in {
+    animation: fade-in 700ms ease both;
+  }
+
+  .scale-in {
+    animation: scale-in 750ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .animation-delay-150 {
+    animation-delay: 150ms;
+  }
+
+  .animation-delay-300 {
+    animation-delay: 300ms;
+  }
+
+  .animation-delay-500 {
+    animation-delay: 500ms;
+  }
+
+  .cinematic-fallback {
+    background:
+      linear-gradient(120deg, rgba(0, 229, 255, 0.14), transparent 28%, rgba(255, 61, 90, 0.14) 65%, transparent),
+      radial-gradient(circle at 20% 30%, rgba(0, 229, 255, 0.28), transparent 26%),
+      radial-gradient(circle at 80% 18%, rgba(255, 61, 90, 0.26), transparent 28%),
+      linear-gradient(135deg, #03050e, #0a1024 45%, #03050e);
+    background-size: 180% 180%, 100% 100%, 100% 100%, 100% 100%;
+    animation: cinematic-pan 18s ease-in-out infinite alternate;
+  }
+
+  .cinematic-hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+    background-size: 70px 70px;
+    mask-image: linear-gradient(to bottom, transparent, black 18%, black 70%, transparent);
+  }
+
+  .animate-flip {
+    animation: flip-card 0.65s ease both;
+  }
+
+  @keyframes blur-fade-up {
+    0% {
+      filter: blur(18px);
+      opacity: 0;
+      transform: translateY(28px);
+    }
+    100% {
+      filter: blur(0);
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fade-in {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes scale-in {
+    0% {
+      opacity: 0;
+      transform: scale(0.94);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes cinematic-pan {
+    0% {
+      background-position: 0% 50%, 50% 50%, 50% 50%, 50% 50%;
+      transform: scale(1);
+    }
+    100% {
+      background-position: 100% 50%, 50% 50%, 50% 50%, 50% 50%;
+      transform: scale(1.05);
+    }
+  }
+
+  @keyframes flip-card {
+    0% {
+      transform: perspective(800px) rotateY(90deg) scale(0.95);
+      opacity: 0;
+    }
+    60% {
+      transform: perspective(800px) rotateY(-12deg) scale(1.02);
+      opacity: 1;
+    }
+    100% {
+      transform: perspective(800px) rotateY(0deg) scale(1);
+      opacity: 1;
+    }
+  }
+}
